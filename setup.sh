@@ -12,13 +12,37 @@ export NEEDRESTART_MODE=a
 
 apt update
 apt -y full-upgrade
-apt -y install openssh-server chrony locales language-pack-ru unattended-upgrades needrestart ufw fail2ban auditd audispd-plugins apparmor-utils rsyslog lynis sysstat atop iotop htop curl wget tar mc xfsprogs bind9-dnsutils lsof bash-completion vim qemu-guest-agent
+apt -y install openssh-server chrony locales language-pack-ru unattended-upgrades needrestart ufw fail2ban auditd audispd-plugins apparmor-utils rsyslog lynis sysstat atop iotop htop curl wget tar mc xfsprogs bind9-dnsutils lsof bash-completion vim open-vm-tools
+apt -y purge qemu-guest-agent
 
 locale-gen ru_RU.UTF-8 en_US.UTF-8
 update-locale LANG=ru_RU.UTF-8
 timedatectl set-timezone Europe/Moscow
 systemctl enable --now chrony ssh
-systemctl start qemu-guest-agent || true
+systemctl enable --now open-vm-tools
+
+# Cloud Director: имя хоста и сеть настраивает VMware Tools, cloud-init отключаем
+rm -f /etc/cloud/cloud.cfg.d/99-hostname.cfg
+if [[ -d /etc/cloud ]]; then
+  touch /etc/cloud/cloud-init.disabled
+fi
+
+# Без cloud-init ключи хоста SSH на клонах сами не создаются
+cat > /etc/systemd/system/ssh-hostkeys.service <<'EOF'
+[Unit]
+Description=Generate SSH host keys if missing
+Before=ssh.service ssh.socket
+ConditionPathExistsGlob=!/etc/ssh/ssh_host_*_key
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/ssh-keygen -A
+
+[Install]
+WantedBy=multi-user.target
+EOF
+systemctl daemon-reload
+systemctl enable ssh-hostkeys.service
 
 systemctl disable --now systemd-networkd-wait-online.service || true
 systemctl mask systemd-networkd-wait-online.service
