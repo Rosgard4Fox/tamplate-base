@@ -73,15 +73,6 @@ for u in asayahov ops; do
   echo "$u ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/90-$u"
   chmod 440 "/etc/sudoers.d/90-$u"
   visudo -cf "/etc/sudoers.d/90-$u"
-
-  # Прежняя версия скрипта клала эти ключи пользователю, запустившему sudo
-  if [[ -n ${SUDO_USER:-} && $SUDO_USER != root ]]; then
-    old=$(getent passwd "$SUDO_USER" | cut -d: -f6)/.ssh/authorized_keys
-    if [[ -f $old ]]; then
-      blob=$(awk '{print $2}' <<<"$key")
-      sed -i "\|$blob|d" "$old"
-    fi
-  fi
 done
 
 ufw default deny incoming
