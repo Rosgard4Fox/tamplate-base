@@ -10,6 +10,15 @@ fi
 export DEBIAN_FRONTEND=noninteractive
 export NEEDRESTART_MODE=a
 
+# Установщик Ubuntu отдаёт корню половину группы томов — забираем остальное
+ROOT_DEV=$(findmnt -no SOURCE /)
+if lvs "$ROOT_DEV" &>/dev/null; then
+  ROOT_VG=$(lvs --noheadings -o vg_name "$ROOT_DEV" | tr -d ' ')
+  if [[ $(vgs --noheadings -o vg_free_count "$ROOT_VG" | tr -d ' ') -gt 0 ]]; then
+    lvextend -r -l +100%FREE "$ROOT_DEV"
+  fi
+fi
+
 apt update
 apt -y full-upgrade
 apt -y install openssh-server chrony locales language-pack-ru unattended-upgrades needrestart ufw fail2ban auditd audispd-plugins apparmor-utils rsyslog lynis sysstat atop iotop htop curl wget tar mc xfsprogs bind9-dnsutils lsof bash-completion vim open-vm-tools
