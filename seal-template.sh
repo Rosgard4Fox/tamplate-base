@@ -38,7 +38,8 @@ rm -rf /var/lib/systemd/netif/leases/* /var/lib/dhcp/*
 rm -f /var/lib/fail2ban/fail2ban.sqlite3
 rm -rf /tmp/* /var/tmp/*
 
-# Логи
+# Логи. Файлы atop удаляем, а не обнуляем: пустой файл он считает повреждённым и не стартует
+rm -f /var/log/atop/atop_*
 find /var/log -path /var/log/journal -prune -o -type f \( -name '*.gz' -o -name '*.[0-9]' -o -name '*.old' \) -exec rm -f {} +
 find /var/log -path /var/log/journal -prune -o -type f -exec truncate -s 0 {} +
 rm -rf /var/log/journal/*
