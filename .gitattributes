@@ -1,2 +1,2 @@
 *.sh text eol=lf
-authorized_keys text eol=lf
+*.pub text eol=lf

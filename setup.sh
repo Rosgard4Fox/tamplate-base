@@ -47,24 +47,27 @@ systemctl enable ssh-hostkeys.service
 systemctl disable --now systemd-networkd-wait-online.service || true
 systemctl mask systemd-networkd-wait-online.service
 
-# Ключи из репозитория — пользователю, запустившему sudo
-KEYS_URL=https://raw.githubusercontent.com/Rosgard4Fox/tamplate-base/main/authorized_keys
-KEYS_USER=${SUDO_USER:-}
-if [[ -n $KEYS_USER && $KEYS_USER != root ]]; then
-  KEYS_HOME=$(getent passwd "$KEYS_USER" | cut -d: -f6)
-  AK=$KEYS_HOME/.ssh/authorized_keys
-  install -d -m 700 -o "$KEYS_USER" -g "$(id -gn "$KEYS_USER")" "$KEYS_HOME/.ssh"
-  touch "$AK"
-  curl -fsSL "$KEYS_URL" | while read -r line; do
-    [[ -z $line ]] && continue
-    grep -qxF "$line" "$AK" || echo "$line" >> "$AK"
-  done
-  chown "$KEYS_USER:$(id -gn "$KEYS_USER")" "$AK"
-  chmod 600 "$AK"
-  ssh-keygen -lf "$AK"
-else
-  echo "Ключи не установлены: запустите через sudo от обычного пользователя" >&2
-fi
+# Пользователи с входом по ключу (ключи лежат в репозитории в keys/<имя>.pub)
+KEYS_URL=https://raw.githubusercontent.com/Rosgard4Fox/tamplate-base/main/keys
+for u in asayahov ops; do
+  key=$(curl -fsSL "$KEYS_URL/$u.pub")
+  id "$u" &>/dev/null || adduser --disabled-password --gecos "" "$u"
+  home=$(getent passwd "$u" | cut -d: -f6)
+  install -d -m 700 -o "$u" -g "$u" "$home/.ssh"
+  echo "$key" > "$home/.ssh/authorized_keys"
+  chown "$u:$u" "$home/.ssh/authorized_keys"
+  chmod 600 "$home/.ssh/authorized_keys"
+  ssh-keygen -lf "$home/.ssh/authorized_keys"
+
+  # Прежняя версия скрипта клала эти ключи пользователю, запустившему sudo
+  if [[ -n ${SUDO_USER:-} && $SUDO_USER != root ]]; then
+    old=$(getent passwd "$SUDO_USER" | cut -d: -f6)/.ssh/authorized_keys
+    if [[ -f $old ]]; then
+      blob=$(awk '{print $2}' <<<"$key")
+      sed -i "\|$blob|d" "$old"
+    fi
+  fi
+done
 
 ufw default deny incoming
 ufw default allow outgoing
