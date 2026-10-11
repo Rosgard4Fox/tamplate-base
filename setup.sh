@@ -59,6 +59,12 @@ for u in asayahov ops; do
   chmod 600 "$home/.ssh/authorized_keys"
   ssh-keygen -lf "$home/.ssh/authorized_keys"
 
+  # Пароля у пользователя нет, поэтому sudo без пароля
+  usermod -aG sudo "$u"
+  echo "$u ALL=(ALL) NOPASSWD:ALL" > "/etc/sudoers.d/90-$u"
+  chmod 440 "/etc/sudoers.d/90-$u"
+  visudo -cf "/etc/sudoers.d/90-$u"
+
   # Прежняя версия скрипта клала эти ключи пользователю, запустившему sudo
   if [[ -n ${SUDO_USER:-} && $SUDO_USER != root ]]; then
     old=$(getent passwd "$SUDO_USER" | cut -d: -f6)/.ssh/authorized_keys
