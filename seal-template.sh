@@ -47,7 +47,7 @@ rm -rf /var/log/journal/*
 # История команд и следы редакторов у root и всех пользователей
 for home in /root /home/*; do
   rm -f "$home"/.bash_history "$home"/.lesshst "$home"/.viminfo "$home"/.wget-hsts
-  rm -f "$home"/setup.sh "$home"/keys.sh
+  rm -f "$home"/setup.sh "$home"/keys.sh "$home"/seal-template.sh
 done
 
 sync
