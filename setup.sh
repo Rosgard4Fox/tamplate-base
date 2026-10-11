@@ -40,7 +40,13 @@ fi
 cat > /etc/systemd/system/ssh-hostkeys.service <<'EOF'
 [Unit]
 Description=Generate SSH host keys if missing
-Before=ssh.service ssh.socket
+# Без DefaultDependencies юнит не встаёт после basic.target и не образует
+# цикла с ssh.socket (тот входит в sockets.target, который нужен basic.target):
+# systemd рвал цикл, выбрасывая запуск ssh.socket, и SSH после загрузки не поднимался.
+DefaultDependencies=no
+After=local-fs.target systemd-remount-fs.service
+Before=ssh.socket ssh.service shutdown.target
+Conflicts=shutdown.target
 ConditionPathExistsGlob=!/etc/ssh/ssh_host_*_key
 
 [Service]
@@ -48,8 +54,10 @@ Type=oneshot
 ExecStart=/usr/bin/ssh-keygen -A
 
 [Install]
-WantedBy=multi-user.target
+WantedBy=sysinit.target
 EOF
+# Прежняя версия юнита ставилась в multi-user.target
+rm -f /etc/systemd/system/multi-user.target.wants/ssh-hostkeys.service
 systemctl daemon-reload
 systemctl enable ssh-hostkeys.service
 
