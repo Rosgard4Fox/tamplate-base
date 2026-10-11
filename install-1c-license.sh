@@ -38,23 +38,29 @@ magic=$(head -c 4 "$WORK/dist" | od -An -tx1 | tr -d ' \n')
 case $magic in
   504b0304) unzip -q "$WORK/dist" -d "$WORK/unpacked" ;;
   1f8b*)    mkdir "$WORK/unpacked" && tar -xzf "$WORK/dist" -C "$WORK/unpacked" ;;
-  7f454c46) mkdir "$WORK/unpacked" && mv "$WORK/dist" "$WORK/unpacked/$(basename "${SRC%%\?*}")" ;;
+  7f454c46|2321*) mkdir "$WORK/unpacked" && mv "$WORK/dist" "$WORK/unpacked/setup-full.run" ;;
   *)
     echo "Это не zip, не tar.gz и не .run — похоже, ссылка не прямая (скачалась веб-страница)" >&2
     exit 1
     ;;
 esac
 
-RUN=$(find "$WORK/unpacked" -name 'setup-full-*-x86_64.run' | head -n 1)
+RUN=$(find "$WORK/unpacked" -name 'setup-full*.run' | head -n 1)
 if [[ -z $RUN ]]; then
-  echo "В дистрибутиве нет setup-full-*-x86_64.run" >&2
+  echo "В дистрибутиве нет setup-full-*.run" >&2
   exit 1
 fi
-VER=$(basename "$RUN" | sed -E 's/^setup-full-([0-9.]+)-x86_64\.run$/\1/')
-echo "Версия платформы: $VER"
 
 chmod +x "$RUN"
 "$RUN" --mode unattended --enable-components server,server_admin
+
+# Версию берём из каталога установки: по ссылке файлообменника имя файла может быть любым
+VER=$(ls -1 /opt/1cv8/x86_64 2>/dev/null | sort -V | tail -n 1)
+if [[ -z $VER ]]; then
+  echo "Каталог /opt/1cv8/x86_64 пуст — установка не завершилась" >&2
+  exit 1
+fi
+echo "Версия платформы: $VER"
 
 UNIT=/opt/1cv8/x86_64/$VER/srv1cv8-$VER@.service
 if [[ ! -f $UNIT ]]; then
