@@ -47,6 +47,25 @@ systemctl enable ssh-hostkeys.service
 systemctl disable --now systemd-networkd-wait-online.service || true
 systemctl mask systemd-networkd-wait-online.service
 
+# Ключи из репозитория — пользователю, запустившему sudo
+KEYS_URL=https://raw.githubusercontent.com/Rosgard4Fox/tamplate-base/main/authorized_keys
+KEYS_USER=${SUDO_USER:-}
+if [[ -n $KEYS_USER && $KEYS_USER != root ]]; then
+  KEYS_HOME=$(getent passwd "$KEYS_USER" | cut -d: -f6)
+  AK=$KEYS_HOME/.ssh/authorized_keys
+  install -d -m 700 -o "$KEYS_USER" -g "$(id -gn "$KEYS_USER")" "$KEYS_HOME/.ssh"
+  touch "$AK"
+  curl -fsSL "$KEYS_URL" | while read -r line; do
+    [[ -z $line ]] && continue
+    grep -qxF "$line" "$AK" || echo "$line" >> "$AK"
+  done
+  chown "$KEYS_USER:$(id -gn "$KEYS_USER")" "$AK"
+  chmod 600 "$AK"
+  ssh-keygen -lf "$AK"
+else
+  echo "Ключи не установлены: запустите через sudo от обычного пользователя" >&2
+fi
+
 ufw default deny incoming
 ufw default allow outgoing
 ufw allow OpenSSH
