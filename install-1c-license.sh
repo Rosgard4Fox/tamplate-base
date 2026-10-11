@@ -26,6 +26,16 @@ apt -y install unzip unixodbc libgsf-1-114 fontconfig libfreetype6 libkrb5-3 lib
 WORK=$(mktemp -d /var/tmp/1c-install.XXXXXX)
 trap 'rm -rf "$WORK"' EXIT
 
+# Публичная ссылка Яндекс Диска ведёт на страницу; прямую ссылку выдаёт его API
+if [[ $SRC =~ ^https?://(disk\.yandex\.[a-z]+|yadi\.sk)/ ]]; then
+  SRC=$(curl -fsSG --data-urlencode "public_key=$SRC" https://cloud-api.yandex.net/v1/disk/public/resources/download \
+    | grep -o '"href":"[^"]*"' | cut -d'"' -f4 | sed 's/\\u0026/\&/g')
+  if [[ -z $SRC ]]; then
+    echo "Яндекс Диск не выдал прямую ссылку — проверьте, что доступ по ссылке открыт" >&2
+    exit 1
+  fi
+fi
+
 if [[ $SRC == http://* || $SRC == https://* ]]; then
   curl -fL --retry 3 -o "$WORK/dist" "$SRC"
 else
