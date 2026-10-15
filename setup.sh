@@ -101,17 +101,22 @@ EOF
 systemctl enable fail2ban
 systemctl restart fail2ban
 
+# Обновления ставятся только вручную, в окно обслуживания: автообновление вместе
+# с needrestart перезапускало PostgreSQL, Apache и nginx посреди утра (15.10.2026).
+# Списки пакетов обновляются, чтобы было видно, что вышло.
 cat > /etc/apt/apt.conf.d/20auto-upgrades <<'EOF'
 APT::Periodic::Update-Package-Lists "1";
-APT::Periodic::Unattended-Upgrade "1";
+APT::Periodic::Unattended-Upgrade "0";
 APT::Periodic::AutocleanInterval "7";
 EOF
 cat > /etc/apt/apt.conf.d/52unattended-local <<'EOF'
 Unattended-Upgrade::Automatic-Reboot "false";
 Unattended-Upgrade::Remove-Unused-Dependencies "true";
 EOF
+systemctl disable --now apt-daily-upgrade.timer unattended-upgrades.service 2>/dev/null || true
+# needrestart после ручного apt upgrade только показывает, какие службы перезапустить.
 mkdir -p /etc/needrestart/conf.d
-echo "\$nrconf{restart} = 'a';" > /etc/needrestart/conf.d/90-auto.conf
+echo "\$nrconf{restart} = 'l';" > /etc/needrestart/conf.d/90-auto.conf
 
 cat > /etc/audit/rules.d/50-base.rules <<'EOF'
 -w /etc/passwd -p wa -k identity
